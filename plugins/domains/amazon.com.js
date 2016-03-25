@@ -7,35 +7,46 @@ module.exports = {
         /^https?:\/\/www\.amazon\.(com|ca|com\.au|be|dk|de|es|fr|in|ie|it|nl|co\.nz|no|at|pt|ch|fi|se|ae|pl|co\.uk|co\.jp)\/gp\/product\/[a-zA-Z0-9\-]+/i
     ],
 
-    provides: "__isAmazonImageNeeded",
+    provides: "additionalData",
 
     mixins: [
         "*"
     ],
 
-    getLink: function(__isAmazonImageNeeded, cheerio) {
+    getMeta: function (meta,additionalData) {
+        return {
+            price: additionalData.price,
+            description: additionalData.description
+        }
+    },
+    getLink: function(cheerio) {
 
         // Smart move: grab missing image from Pinterest share button
         var $pin = cheerio('#tell-a-friend-byline a[href*="pinterest"], #tell-a-friend a[href*="pinterest"]');
 
         if ($pin.length) {
             
-            href = $pin.attr('href');
+            var href = $pin.attr('href');
+            href = decodeURIComponent(decodeURIComponent(href.match(/media%3D([^&]+)/i)[1]));
+            href = href.replace('http://ecx.images-amazon.com','https://images-na.ssl-images-amazon.com');
             
             return {
-                href: decodeURIComponent(decodeURIComponent(href.match(/media%3D([^&]+)/i)[1])),
+                href: href,
                 rel: CONFIG.R.thumbnail,
                 type: CONFIG.T.image
             }
         }
     },
 
-    getData: function (meta) {
-        if ((meta.twitter && meta.twitter.image) || (meta.og && meta.og.image)) {
-            return;
-        } else {
+    getData: function(url, urlMatch, meta, cheerio) {
+
+        var $price = cheerio('#priceblock_ourprice').text().trim();
+        var $description = cheerio('#feature-bullets').text().trim();
+
             return {
-                __isAmazonImageNeeded: true
+            additionalData: {
+                price: $price,
+                description: $description
             }
         }
     },
